@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LexLoop Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .screen {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      text-align: center;
+      overflow-y: auto;
+    }
+    .screen.active { display: flex; }
+
+    h1 { margin-bottom: 15px; font-size: 1.6em; }
+
+    #wordDisplay {
+      font-size: 2.2em;
+      margin: 20px 0;
+      font-weight: bold;
+      color: #2E7D32;
+      word-wrap: break-word;
+    }
+    #hintDisplay {
+      font-size: 1.1em;
+      color: #1565c0;
+      margin-bottom: 25px;
+    }
+
+    /* Nút tròn */
+    .review-buttons {
+      display: flex;
+      gap: 20px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn {
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:active { transform: scale(0.95); }
+
+    .btn.round {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      font-size: 1.3em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .btn.orange { background: #ff9800; }
+    .btn.blue { background: #2196f3; }
+    .btn.green { background: #4caf50; }
+
+    /* Deck selection */
+    #sheetList label {
+      display: block;
+      background: #fff;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: left;
+      font-size: 0.95em;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 6px 0;
+    }
+    .nav-btn {
+      flex: 1;
+      text-align: center;
+      font-size: 0.9em;
+      cursor: pointer;
+      color: #666;
+      padding: 6px 0;
+    }
+    .nav-btn.active { color: #1565c0; font-weight: bold; }
+
+    /* Dashboard */
+    #dashboardTable {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    #dashboardTable th, #dashboardTable td {
+      border: 1px solid #ccc;
+      padding: 6px;
+      font-size: 0.9em;
+    }
+    #dashboardTable th { background: #f0f0f0; }
+
+    @media (max-width: 420px) {
+      #wordDisplay { font-size: 1.8em; }
+      h1 { font-size: 1.4em; }
+      .btn.round {
+        width: 70px;
+        height: 70px;
+        font-size: 1.1em;
+      }
+      #dashboardTable th, #dashboardTable td { font-size: 0.75em; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Home -->
+  <div id="homeScreen" class="screen active">
+    <h1>⚡ Từ Vựng By Phong</h1>
+    <p>Chọn bộ từ vựng để bắt đầu</p>
+    <div id="sheetList"></div>
+    <button class="btn" style="background:#4caf50;color:#fff;padding:12px 20px;border-radius:8px;" onclick="startReview()">Bắt đầu</button>
+  </div>
+
+  <!-- Review -->
+  <div id="reviewScreen" class="screen">
+    <h1>Ôn tập</h1>
+    <div id="wordDisplay">...</div>
+    <div id="hintDisplay"></div>
+    <div class="review-buttons">
+      <button id="speakBtn" class="btn round green">🔊</button>
+      <button id="hintBtn" class="btn round orange">💡</button>
+      <button id="nextBtn" class="btn round blue">✅</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="statsScreen" class="screen">
+    <h1>📊 Thống kê</h1>
+    <p>Từ đã học: <span id="learnedCount">0</span></p>
+    <p>Từ quên (có dùng Hint): <span id="forgotCount">0</span></p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboardScreen" class="screen">
+    <h1>📚 Dashboard</h1>
+    <table id="dashboardTable">
+      <thead>
+        <tr>
+          <th>Từ</th>
+          <th>Nghĩa</th>
+          <th>Số lần Hint</th>
+        </tr>
+      </thead>
+      <tbody id="dashboardBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Settings -->
+  <div id="settingsScreen" class="screen">
+    <h1>⚙️ Cài đặt</h1>
+    <p><b>Google Sheet ID:</b> <span id="sheetIdDisplay"></span></p>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <div class="nav-btn active" onclick="switchScreen('homeScreen', this)">🏠 Home</div>
+    <div class="nav-btn" onclick="switchScreen('reviewScreen', this)">🧠 Review</div>
+    <div class="nav-btn" onclick="switchScreen('statsScreen', this)">📊 Stats</div>
+    <div class="nav-btn" onclick="switchScreen('dashboardScreen', this)">📚 Dashboard</div>
+    <div class="nav-btn" onclick="switchScreen('settingsScreen', this)">⚙️ Settings</div>
+  </div>
+
+  <script>
+    // 🟢 CONFIG
+    const sheetId = "1vki3M0GxO3BgG-bAweQrIHGW73ET-7PXUsrVptsQ3HY"; 
+    const apiKey = "AIzaSyBO52OX4hyqnU_9N32Gcn1_vx597SxhR-g"; 
+
+    document.getElementById("sheetIdDisplay").textContent = sheetId;
+
+    let allWords = [], currentIndex = 0, hintShown = false;
+    let learnedCount = 0, forgotCount = 0;
+    let dashboardData = {}; // {word: {meaning, hints}}
+
+    const wordDisplay = document.getElementById("wordDisplay");
+    const hintDisplay = document.getElementById("hintDisplay");
+
+    async function loadSheetNames() {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?key=${apiKey}`);
+      const data = await res.json();
+      const sheetList = document.getElementById("sheetList");
+      sheetList.innerHTML = "";
+      if (data.sheets) {
+        data.sheets.forEach(sheet => {
+          const name = sheet.properties.title;
+          const label = document.createElement("label");
+          label.innerHTML = `<input type="checkbox" value="${name}"> ${name}`;
+          sheetList.appendChild(label);
+        });
+      } else {
+        sheetList.innerHTML = "<p>❌ Không lấy được dữ liệu từ Google Sheet</p>";
+      }
+    }
+
+    async function startReview() {
+      const checkboxes = document.querySelectorAll("#sheetList input:checked");
+      const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
+      if (!selectedSheets.length) return alert("Hãy chọn ít nhất 1 sheet!");
+
+      allWords = [];
+      dashboardData = {};
+      for (const sheet of selectedSheets) {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${sheet}?key=${apiKey}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.values) {
+          const words = data.values
+            .filter(row => row.length >= 2)
+            .map(row => ({ word: row[0], meaning: row[1] }));
+          allWords.push(...words);
+          words.forEach(w => {
+            dashboardData[w.word] = { meaning: w.meaning, hints: 0 };
+          });
+        }
+      }
+      shuffleArray(allWords);
+      currentIndex = 0;
+      learnedCount = 0;
+      forgotCount = 0;
+      switchScreen("reviewScreen");
+      showWord();
+    }
+
+    function showWord() {
+      if (currentIndex < allWords.length) {
+        wordDisplay.textContent = allWords[currentIndex].word;
+        hintDisplay.textContent = "";
+        hintShown = false;
+      } else {
+        wordDisplay.textContent = "🎉 Hoàn thành!";
+        hintDisplay.textContent = "";
+      }
+      document.getElementById("learnedCount").textContent = learnedCount;
+      document.getElementById("forgotCount").textContent = forgotCount;
+      updateDashboard();
+    }
+
+    function showHint() {
+      if (!allWords.length || currentIndex >= allWords.length) return;
+      hintDisplay.textContent = `Nghĩa: ${allWords[currentIndex].meaning}`;
+      if (!hintShown) {
+        forgotCount++;
+        hintShown = true;
+        dashboardData[allWords[currentIndex].word].hints++;
+        // đưa từ này xuống cuối để ôn lại
+        allWords.push(allWords[currentIndex]);
+      }
+    }
+
+    function nextWord() {
+      if (currentIndex < allWords.length) {
+        if (!hintShown) learnedCount++;
+        currentIndex++;
+        showWord();
+      }
+    }
+
+    function speakWord() {
+      if (!allWords.length || currentIndex >= allWords.length) return;
+      const utterance = new SpeechSynthesisUtterance(allWords[currentIndex].word);
+      utterance.lang = "en-US";
+      speechSynthesis.speak(utterance);
+    }
+
+    function updateDashboard() {
+      const tbody = document.getElementById("dashboardBody");
+      tbody.innerHTML = "";
+      Object.keys(dashboardData).forEach(word => {
+        const row = dashboardData[word];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${word}</td><td>${row.meaning}</td><td>${row.hints}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function switchScreen(screenId, btn) {
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      document.getElementById(screenId).classList.add("active");
+      document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+    }
+
+    document.getElementById("hintBtn").onclick = showHint;
+    document.getElementById("nextBtn").onclick = nextWord;
+    document.getElementById("speakBtn").onclick = speakWord;
+
+    window.onload = loadSheetNames;
+  </script>
+</body>
+</html>
